@@ -79,7 +79,7 @@ def main():
 
   <br>
 
-  <label><strong>Poem:</strong></label>
+  <label><strong>Poem / Debug Output:</strong></label>
   <textarea id="poemOutput" readonly></textarea>
 
 </div>
@@ -87,8 +87,7 @@ def main():
 <script>
 async function generatePoem(codeInput, style) {
   try {
-
-    // Step 1: Create temp user
+    // Step 1: Temp signup
     const signup = await fetch("https://puter.com/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -99,7 +98,7 @@ async function generatePoem(codeInput, style) {
     const token = signupData.token;
 
     if (!token) {
-      throw new Error("No token returned from Puter.");
+      throw new Error("No token returned from Puter signup.");
     }
 
     const stylePrompts = {
@@ -110,7 +109,7 @@ async function generatePoem(codeInput, style) {
       biblical: "Transform this programming code into prophetic biblical poetic scripture."
     };
 
-    // Step 2: Call Puter AI driver
+    // Step 2: Call AI driver
     const aiCall = await fetch("https://api.puter.com/drivers/call", {
       method: "POST",
       headers: {
@@ -141,16 +140,21 @@ async function generatePoem(codeInput, style) {
 
     const result = await aiCall.json();
 
-    return result?.result?.message?.content || "No poem returned.";
+    // Check if result is empty
+    if (!result?.result?.message?.content) {
+      throw new Error("Empty response from Puter API.");
+    }
+
+    return result.result.message.content;
 
   } catch (err) {
     console.error(err);
-    return "Generation failed. Check console for details.";
+    // Display the error directly in the poem box for mobile
+    return "Generation failed. Error details:\n" + (err.message || err);
   }
 }
 
 document.getElementById("generateBtn").addEventListener("click", async () => {
-
   const input = document.getElementById("codeInput").value;
   const style = document.getElementById("styleSelect").value;
   const outputBox = document.getElementById("poemOutput");
