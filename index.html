@@ -1,131 +1,167 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ShakeSPy</title>
-<link rel="manifest" href="manifest.json">
-<style>
-body { font-family:sans-serif; margin:0; padding:0; background:#fdf6e3; color:#222; }
-header { background:#073642; color:#eee; padding:1em; text-align:center; }
-#container { display:flex; flex-direction:column; padding:1em; gap:1em; }
-textarea { width:100%; height:120px; font-family:monospace; margin-bottom:0.5em; }
-#output { background:#fff; padding:1em; min-height:120px; white-space:pre-wrap; border:1px solid #ccc; }
-button { padding:0.5em 1em; margin-right:0.5em; margin-bottom:0.5em; }
-#tabs { display:flex; gap:0.5em; margin-bottom:0.5em; overflow-x:auto; }
-.tab { padding:0.5em; background:#eee; border-radius:4px; cursor:pointer; white-space:nowrap; }
-.tab.active { background:#073642; color:#eee; }
-.file-list { margin:0; padding:0; list-style:none; }
-</style>
+  <meta charset="UTF-8" />
+  <title>ShakesPyr</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f4efe3;
+    }
+
+    header {
+      background: #0f4c5c;
+      color: white;
+      padding: 16px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 160px;
+      padding: 10px;
+      margin-bottom: 15px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+
+    select, button {
+      padding: 8px;
+      margin-right: 8px;
+      margin-bottom: 15px;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    #poemOutput {
+      background: #ffffff;
+      font-family: Georgia, serif;
+      white-space: pre-wrap;
+    }
+  </style>
 </head>
+
 <body>
-<header><h1>ShakeSPy</h1></header>
-<div id="container">
-  <div id="tabs"></div>
-  <textarea id="scriptInput" placeholder="Paste Python script here..."></textarea>
-  <input type="file" id="fileUpload" multiple>
-  <ul id="fileList" class="file-list"></ul>
-  <div>
-    <button id="generateBtn">Generate Poetry Script</button>
-    <button id="downloadBtn">Download Poem</button>
-    <button id="clearBtn">Clear</button>
-  </div>
-  <div id="output">Poetic output will appear here...</div>
+
+<header>ShakesPyr</header>
+
+<div class="container">
+
+  <label><strong>Paste Code:</strong></label>
+  <textarea id="codeInput">
+def main():
+    for i in range(1,6):
+        print(i)
+  </textarea>
+
+  <label><strong>Style:</strong></label>
+  <br>
+  <select id="styleSelect">
+    <option value="lyrical">Lyrical</option>
+    <option value="shakespearean">Shakespearean</option>
+    <option value="noir">Noir</option>
+    <option value="sci-fi">Sci-Fi</option>
+    <option value="biblical">Biblical</option>
+  </select>
+
+  <button id="generateBtn">Generate Poetry</button>
+
+  <br>
+
+  <label><strong>Poem:</strong></label>
+  <textarea id="poemOutput" readonly></textarea>
+
 </div>
 
-<script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
 <script>
-let pyodideReady = false;
-let pyodide = null;
-let scripts = [];
-let currentIndex = -1;
+async function generatePoem(codeInput, style) {
+  try {
 
-// Initialize Pyodide
-async function initPyodide() {
-  pyodide = await loadPyodide();
-  pyodideReady = true;
-}
-initPyodide();
+    // Step 1: Create temp user
+    const signup = await fetch("https://puter.com/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_temp: true })
+    });
 
-// Tab management
-const tabsContainer = document.getElementById('tabs');
-function addTab(name, content) {
-  scripts.push({name, content});
-  const tab = document.createElement('div');
-  tab.className = 'tab';
-  tab.textContent = name;
-  tab.addEventListener('click', () => switchTab(scripts.indexOf(scripts.find(s => s.name === name))));
-  tabsContainer.appendChild(tab);
-  switchTab(scripts.length-1);
-}
-function switchTab(index) {
-  currentIndex = index;
-  const tabDivs = tabsContainer.children;
-  for(let i=0;i<tabDivs.length;i++) tabDivs[i].classList.remove('active');
-  if(tabDivs[index]) tabDivs[index].classList.add('active');
-  document.getElementById('scriptInput').value = scripts[index].content;
-}
+    const signupData = await signup.json();
+    const token = signupData.token;
 
-// File upload
-const fileUpload = document.getElementById('fileUpload');
-const fileList = document.getElementById('fileList');
-fileUpload.addEventListener('change', async (e) => {
-  fileList.innerHTML = '';
-  for (let file of e.target.files) {
-    const content = await file.text();
-    const li = document.createElement('li');
-    li.textContent = `${file.name} (${content.length} chars)`;
-    li.dataset.content = content;
-    fileList.appendChild(li);
-    addTab(file.name, content);
-  }
-});
-
-// Poetic transformation
-async function generatePoetry() {
-  if (!pyodideReady) return alert("Python runtime not ready!");
-  let combinedScript = document.getElementById('scriptInput').value;
-  for (let li of fileList.children) combinedScript += "\n" + li.dataset.content;
-
-  // Minimal poetic obfuscation
-  const poetryScript = combinedScript
-    .split('\n')
-    .map(line => line.trim() ? `🌸 ${line} 🌸` : '')
-    .join('\n');
-
-  const autoRun = poetryScript.includes('🜏');
-  document.getElementById('output').textContent = poetryScript;
-
-  if (autoRun) {
-    try {
-      await pyodide.runPythonAsync(combinedScript);
-    } catch (err) {
-      console.error("Error running Python:", err);
+    if (!token) {
+      throw new Error("No token returned from Puter.");
     }
+
+    const stylePrompts = {
+      lyrical: "Transform this programming code into expressive lyrical free verse.",
+      shakespearean: "Transform this programming code into Shakespearean dramatic poetry.",
+      noir: "Transform this programming code into dark noir monologue prose-poetry.",
+      "sci-fi": "Transform this programming code into futuristic sci-fi poetic narration.",
+      biblical: "Transform this programming code into prophetic biblical poetic scripture."
+    };
+
+    // Step 2: Call Puter AI driver
+    const aiCall = await fetch("https://api.puter.com/drivers/call", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        interface: "puter-chat-completion",
+        driver: "openai-completion",
+        method: "complete",
+        test_mode: false,
+        args: {
+          model: "gpt-4o-mini",
+          stream: false,
+          messages: [
+            {
+              role: "system",
+              content: "You transform programming code into refined literary poetry. Never output code. Only output artistic verse."
+            },
+            {
+              role: "user",
+              content: stylePrompts[style] + "\n\nCode:\n" + codeInput
+            }
+          ]
+        }
+      })
+    });
+
+    const result = await aiCall.json();
+
+    return result?.result?.message?.content || "No poem returned.";
+
+  } catch (err) {
+    console.error(err);
+    return "Generation failed. Check console for details.";
   }
 }
 
-// Download poetry script
-function downloadPoem() {
-  const content = document.getElementById('output').textContent;
-  const blob = new Blob([content], {type: 'text/plain'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'poetic_script.txt';
-  a.click();
-}
+document.getElementById("generateBtn").addEventListener("click", async () => {
 
-// Event listeners
-document.getElementById('generateBtn').addEventListener('click', generatePoetry);
-document.getElementById('downloadBtn').addEventListener('click', downloadPoem);
-document.getElementById('clearBtn').addEventListener('click', () => {
-  document.getElementById('scriptInput').value = '';
-  fileList.innerHTML = '';
-  tabsContainer.innerHTML = '';
-  scripts = [];
-  currentIndex = -1;
-  document.getElementById('output').textContent = 'Poetic output will appear here...';
+  const input = document.getElementById("codeInput").value;
+  const style = document.getElementById("styleSelect").value;
+  const outputBox = document.getElementById("poemOutput");
+
+  outputBox.value = "Generating...";
+
+  const poem = await generatePoem(input, style);
+
+  outputBox.value = poem;
 });
 </script>
+
 </body>
 </html>
